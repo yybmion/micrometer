@@ -15,6 +15,7 @@
  */
 package io.micrometer.core.instrument.binder.jvm;
 
+import io.micrometer.core.Issue;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.time.Duration;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -67,6 +69,56 @@ class ExecutorServiceMetricsReflectiveTests {
         latch.countDown();
         await().atMost(Duration.ofSeconds(1))
             .untilAsserted(() -> assertThat(registry.get("executor.active").gauge().value()).isEqualTo(0));
+    }
+
+    @Test
+    @Issue("#6882")
+    void threadPerTaskExecutorDoesNotThrowExceptionWhenMonitoredWithoutAddOpens() {
+        ExecutorService executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory());
+        String executorServiceName = "threadPerTaskExecutor";
+
+        // Should not throw exception when monitoring
+        assertThatCode(() -> {
+            ExecutorServiceMetrics executorServiceMetrics = new ExecutorServiceMetrics(executor,
+                    executorServiceName);
+            executorServiceMetrics.bindTo(registry);
+        }).doesNotThrowAnyException();
+
+        // Should not throw exception when scraping metrics
+        assertThatCode(() -> {
+            registry.getMeters().forEach(meter -> {
+                if (meter.getId().getName().contains("executor")) {
+                    meter.measure();
+                }
+            });
+        }).doesNotThrowAnyException();
+
+        executor.shutdown();
+    }
+
+    @Test
+    @Issue("#6882")
+    void virtualThreadPerTaskExecutorDoesNotThrowExceptionWhenMonitoredWithoutAddOpens() {
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        String executorServiceName = "virtualThreadPerTaskExecutor";
+
+        // Should not throw exception when monitoring
+        assertThatCode(() -> {
+            ExecutorServiceMetrics executorServiceMetrics = new ExecutorServiceMetrics(executor,
+                    executorServiceName);
+            executorServiceMetrics.bindTo(registry);
+        }).doesNotThrowAnyException();
+
+        // Should not throw exception when scraping metrics
+        assertThatCode(() -> {
+            registry.getMeters().forEach(meter -> {
+                if (meter.getId().getName().contains("executor")) {
+                    meter.measure();
+                }
+            });
+        }).doesNotThrowAnyException();
+
+        executor.shutdown();
     }
 
 }
