@@ -379,4 +379,56 @@ class ExecutorServiceMetricsTest {
             .isExactlyInstanceOf(MeterNotFoundException.class);
     }
 
+    @Test
+    @DisabledForJreRange(max = JRE.JAVA_20, disabledReason = "ThreadPerTaskExecutor is available from Java 21+")
+    @Issue("#6882")
+    void threadPerTaskExecutorDoesNotThrowExceptionWhenMonitored() {
+        ExecutorService executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory());
+        String executorServiceName = "threadPerTaskExecutor";
+
+        // Should not throw exception when monitoring
+        assertThatCode(() -> {
+            ExecutorServiceMetrics executorServiceMetrics = new ExecutorServiceMetrics(executor,
+                    executorServiceName, userTags);
+            executorServiceMetrics.bindTo(registry);
+        }).doesNotThrowAnyException();
+
+        // Should not throw exception when scraping metrics
+        assertThatCode(() -> {
+            registry.getMeters().forEach(meter -> {
+                if (meter.getId().getName().contains("executor")) {
+                    meter.measure();
+                }
+            });
+        }).doesNotThrowAnyException();
+
+        executor.shutdown();
+    }
+
+    @Test
+    @DisabledForJreRange(max = JRE.JAVA_20, disabledReason = "ThreadPerTaskExecutor is available from Java 21+")
+    @Issue("#6882")
+    void virtualThreadPerTaskExecutorDoesNotThrowExceptionWhenMonitored() {
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        String executorServiceName = "virtualThreadPerTaskExecutor";
+
+        // Should not throw exception when monitoring
+        assertThatCode(() -> {
+            ExecutorServiceMetrics executorServiceMetrics = new ExecutorServiceMetrics(executor,
+                    executorServiceName, userTags);
+            executorServiceMetrics.bindTo(registry);
+        }).doesNotThrowAnyException();
+
+        // Should not throw exception when scraping metrics
+        assertThatCode(() -> {
+            registry.getMeters().forEach(meter -> {
+                if (meter.getId().getName().contains("executor")) {
+                    meter.measure();
+                }
+            });
+        }).doesNotThrowAnyException();
+
+        executor.shutdown();
+    }
+
 }
