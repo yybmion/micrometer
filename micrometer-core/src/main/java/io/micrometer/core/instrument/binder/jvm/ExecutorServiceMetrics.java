@@ -334,7 +334,13 @@ public class ExecutorServiceMetrics implements MeterBinder {
             // For Executors.newThreadPerTaskExecutor() and
             // Executors.newVirtualThreadPerTaskExecutor()
             else if (className.equals(CLASS_NAME_THREAD_PER_TASK_EXECUTOR)) {
-                monitorThreadPerTaskExecutor(registry, executorService);
+                if (METHOD_HANDLE_THREAD_COUNT_FROM_THREAD_PER_TASK_EXECUTOR == null) {
+                    log.warn("Failed to bind as {} requires --add-opens java.base/java.util.concurrent=ALL-UNNAMED",
+                            className);
+                }
+                else {
+                    monitorThreadPerTaskExecutor(registry, executorService);
+                }
             }
             else {
                 log.warn("Failed to bind as {} is unsupported.", className);
